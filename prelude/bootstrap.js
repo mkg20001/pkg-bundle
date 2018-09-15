@@ -45,12 +45,6 @@ if (process.env.PKG_EXECPATH === 'PKG_INVOKE_NODEJS') {
   return { undoPatch: true };
 }
 
-if (process.argv[1] !== 'PKG_DUMMY_ENTRYPOINT') {
-  // expand once patchless is introduced, that
-  // will obviously lack any work in node_main.cc
-  throw new Error('PKG_DUMMY_ENTRYPOINT EXPECTED');
-}
-
 if (process.env.PKG_EXECPATH === EXECPATH) {
   process.argv.splice(1, 1);
 } else {
@@ -1194,7 +1188,7 @@ function payloadFileSync (pointer) {
     };
   } else
   if (NODE_VERSION_MAJOR <= 9) {
-    im = require('internal/module');
+    im = require('/internal/module');
     if (NODE_VERSION_MAJOR <= 7) {
       makeRequireFunction = function (m) {
         return im.makeRequireFunction.call(m);
@@ -1203,7 +1197,7 @@ function payloadFileSync (pointer) {
       makeRequireFunction = im.makeRequireFunction;
     }
   } else {
-    im = require('internal/modules/cjs/helpers');
+    im = require('/internal/modules/cjs/helpers');
     makeRequireFunction = im.makeRequireFunction;
     // TODO esm modules along with cjs
   }
@@ -1453,7 +1447,7 @@ function payloadFileSync (pointer) {
     var createPromise = binding.createPromise;
     var promiseResolve = binding.promiseResolve;
     var promiseReject = binding.promiseReject;
-    var customPromisifyArgs = require('internal/util').customPromisifyArgs;
+    var customPromisifyArgs = require('/internal/util').customPromisifyArgs;
 
     // /////////////////////////////////////////////////////////////
     // FS //////////////////////////////////////////////////////////
