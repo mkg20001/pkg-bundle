@@ -6,3 +6,6 @@
 
 # logs
 npm-debug.log
+
+# stuff
+package-lock.json
