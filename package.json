@@ -1,6 +1,6 @@
 {
   "name": "pkg-bundle",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Package your Node.js binary into a single-file bundle without much effort",
   "main": "lib-es5/index.js",
   "license": "MIT",
