@@ -1,12 +1,12 @@
 {
-  "name": "pkg",
-  "version": "4.3.4",
-  "description": "Package your Node.js project into an executable",
+  "name": "pkg-bundle",
+  "version": "0.0.1",
+  "description": "Package your Node.js binary into a single-file bundle without much effort",
   "main": "lib-es5/index.js",
   "license": "MIT",
-  "repository": "zeit/pkg",
+  "repository": "mkg20001/pkg-bundle",
   "bin": {
-    "pkg": "lib-es5/bin.js"
+    "pkg-bundle": "lib-es5/bin.js"
   },
   "files": [
     "lib-es5/*.js",

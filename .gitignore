@@ -6,3 +6,8 @@
 
 # logs
 npm-debug.log
+
+# others
+package-lock.json
+out*
+*.sh
