@@ -12,11 +12,51 @@
 /* global REQUIRE_COMMON */
 /* global VIRTUAL_FILESYSTEM */
 /* global DEFAULT_ENTRYPOINT */
+/* global DATA_PATH */
 
 'use strict';
 
 var common = {};
 REQUIRE_COMMON(common);
+
+// /////////////////////////////////////////////////////////////////
+// HACKY NATIVE LOADER AND PATCHER /////////////////////////////////
+// /////////////////////////////////////////////////////////////////
+
+const vm = require('vm');
+const natives = process.binding('natives');
+const patches = {
+  'internal/modules/cjs/loader': (code) => code.replace('process.binding(\'fs\')', 'global.PKGJS.fsFakeBinding')
+};
+const cache = {
+  'internal/bootstrap/loaders': { // stub since we can't get the orig and only need a few funcs
+    NativeModule: {
+      _source: natives,
+      nonInternalExists: () => false // ancestor._resolveFilename should've returned something earlier
+    }
+  }
+};
+
+function loadNative (path) {
+  path = path.replace('.js', '').replace(/\/\//g, '/');
+  let code = natives[path];
+  if (cache[path]) return cache[path];
+  if (!code) {
+    throw new Error('Requested native ' + path + ' not found');
+  }
+  code = code.replace(/require\('internal/gmi, 'global.PKGJS.loadNative(\'internal/');
+  if (patches[path]) {
+    code = patches[path](code);
+  }
+
+  const script = new vm.Script(Buffer.from('(function(module, exports, require) { ' + code + '\n return module.exports })\n'), { filename: path + '.js' });
+  const module = { exports: {} };
+  return (cache[path] = script.runInThisContext()(module, module.exports, require));
+}
+
+// Expose loadNative as global
+
+global.PKGJS = { loadNative };
 
 var STORE_BLOB = common.STORE_BLOB;
 var STORE_CONTENT = common.STORE_CONTENT;
@@ -38,17 +78,11 @@ var NODE_VERSION_MAJOR = process.version.match(/^v(\d+)/)[1] | 0;
 // set ENTRYPOINT and ARGV0 here because
 // they can be altered during process run
 var ARGV0 = process.argv[0];
-var EXECPATH = process.execPath;
+var EXECPATH = DATA_PATH;
 var ENTRYPOINT = process.argv[1];
 
 if (process.env.PKG_EXECPATH === 'PKG_INVOKE_NODEJS') {
   return { undoPatch: true };
-}
-
-if (process.argv[1] !== 'PKG_DUMMY_ENTRYPOINT') {
-  // expand once patchless is introduced, that
-  // will obviously lack any work in node_main.cc
-  throw new Error('PKG_DUMMY_ENTRYPOINT EXPECTED');
 }
 
 if (process.env.PKG_EXECPATH === EXECPATH) {
@@ -1138,6 +1172,9 @@ function payloadFileSync (pointer) {
     if (!entityContent) return undefined;
     return payloadFileSync(entityContent).toString();
   };
+
+  // Expose as global so we can just reuse that in a native-patch
+  global.PKGJS.fsFakeBinding = fs;
 }());
 
 // /////////////////////////////////////////////////////////////////
@@ -1151,6 +1188,9 @@ function payloadFileSync (pointer) {
   ancestor._compile =         Module.prototype._compile;
   ancestor._resolveFilename = Module._resolveFilename;
   ancestor.runMain =          Module.runMain;
+
+  // replace fnc with our patched version (see loadNative and "patches" at the top)
+  const patchedResolveFilename = loadNative('internal/modules/cjs/loader.js')._resolveFilename;
 
   Module.prototype.require = function (path) {
     try {
@@ -1194,7 +1234,7 @@ function payloadFileSync (pointer) {
     };
   } else
   if (NODE_VERSION_MAJOR <= 9) {
-    im = require('internal/module');
+    im = loadNative('internal/module');
     if (NODE_VERSION_MAJOR <= 7) {
       makeRequireFunction = function (m) {
         return im.makeRequireFunction.call(m);
@@ -1203,7 +1243,7 @@ function payloadFileSync (pointer) {
       makeRequireFunction = im.makeRequireFunction;
     }
   } else {
-    im = require('internal/modules/cjs/helpers');
+    im = loadNative('internal/modules/cjs/helpers');
     makeRequireFunction = im.makeRequireFunction;
     // TODO esm modules along with cjs
   }
@@ -1275,7 +1315,7 @@ function payloadFileSync (pointer) {
       var savePathCache = Module._pathCache;
       Module._pathCache = Object.create(null);
       try {
-        filename = ancestor._resolveFilename.apply(this, arguments);
+        filename = patchedResolveFilename.apply(this, arguments);
         flagWasOn = true;
       } finally {
         Module._pathCache = savePathCache;
@@ -1453,7 +1493,7 @@ function payloadFileSync (pointer) {
     var createPromise = binding.createPromise;
     var promiseResolve = binding.promiseResolve;
     var promiseReject = binding.promiseReject;
-    var customPromisifyArgs = require('internal/util').customPromisifyArgs;
+    var customPromisifyArgs = loadNative('internal/util').customPromisifyArgs;
 
     // /////////////////////////////////////////////////////////////
     // FS //////////////////////////////////////////////////////////
@@ -1511,3 +1551,5 @@ function payloadFileSync (pointer) {
     });
   }
 }());
+
+require('module').runMain();
