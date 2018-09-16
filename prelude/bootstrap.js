@@ -24,7 +24,13 @@ const natives = process.binding('natives');
 const patches = {
   'internal/modules/cjs/loader.js': (code) => code.replace('process.binding(\'fs\')', 'global.PKGJS.fsFakeBinding')
 };
+const Module = require('module');
 const cache = {};
+// const m = new Module('internal/bootstrap/loaders.js', null);
+require('fs').writeFileSync('/tmp/ff.js', natives['internal/bootstrap/loaders']);
+// m.load('/tmp/ff.js');
+console.log(require('/tmp/ff.js'));
+console.log(process.nativeModule);
 function loadNative (path) {
   path = path.replace('.js', '').replace(/\/\//g, '/');
   let code = natives[path];
