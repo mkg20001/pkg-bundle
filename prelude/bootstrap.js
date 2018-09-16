@@ -22,15 +22,17 @@ const vm = require('vm');
 
 const natives = process.binding('natives');
 const patches = {
-  'internal/modules/cjs/loader.js': (code) => code.replace('process.binding(\'fs\')', 'global.PKGJS.fsFakeBinding')
+  'internal/modules/cjs/loader': (code) => code.replace('process.binding(\'fs\')', 'global.PKGJS.fsFakeBinding')
 };
-const Module = require('module');
-const cache = {};
-// const m = new Module('internal/bootstrap/loaders.js', null);
-require('fs').writeFileSync('/tmp/ff.js', natives['internal/bootstrap/loaders']);
-// m.load('/tmp/ff.js');
-console.log(require('/tmp/ff.js'));
-console.log(process.nativeModule);
+const cache = {
+  'internal/bootstrap/loaders': { // stub since we can't get the orig and only need a few funcs
+    NativeModule: {
+      _source: natives,
+      nonInternalExists: () => false // ancestor._resolveFilename should've returned earlier
+    }
+  }
+};
+
 function loadNative (path) {
   path = path.replace('.js', '').replace(/\/\//g, '/');
   let code = natives[path];
@@ -1180,7 +1182,7 @@ function payloadFileSync (pointer) {
   ancestor._resolveFilename = Module._resolveFilename;
   ancestor.runMain =          Module.runMain;
 
-  Module._findPath = loadNative('internal/modules/cjs/loader.js')._findPath; // replace fnc with our patched version (see loadNative and "patches" at the top)
+  const patchedResolveFilename = loadNative('internal/modules/cjs/loader.js')._resolveFilename; // replace fnc with our patched version (see loadNative and "patches" at the top)
 
   Module.prototype.require = function (path) {
     try {
@@ -1305,7 +1307,7 @@ function payloadFileSync (pointer) {
       var savePathCache = Module._pathCache;
       Module._pathCache = Object.create(null);
       try {
-        filename = ancestor._resolveFilename.apply(this, arguments);
+        filename = patchedResolveFilename.apply(this, arguments);
         flagWasOn = true;
       } finally {
         Module._pathCache = savePathCache;
