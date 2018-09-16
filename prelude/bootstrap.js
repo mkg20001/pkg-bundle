@@ -18,6 +18,31 @@
 
 var common = {};
 REQUIRE_COMMON(common);
+const vm = require('vm');
+
+const natives = process.binding('natives');
+const patches = {
+  'internal/modules/cjs/loader.js': (code) => code.replace('process.binding(\'fs\')', 'global.PKGJS.fsFakeBinding')
+};
+const cache = {};
+function loadNative (path) {
+  path = path.replace('.js', '').replace(/\/\//g, '/');
+  let code = natives[path];
+  if (cache[path]) return cache[path];
+  if (!code) {
+    throw new Error('Requested native ' + path + ' not found');
+  }
+  code = code.replace(/require\('internal/gmi, 'global.PKGJS.loadNative(\'internal/');
+  if (patches[path]) {
+    code = patches[path](code);
+  }
+
+  const script = new vm.Script(Buffer.from('(function(module, exports, require) { ' + code + '\n return module.exports })\n'), { filename: path + '.js' });
+  const module = { exports: {} };
+  return (cache[path] = script.runInThisContext()(module, module.exports, require));
+}
+
+global.PKGJS = { loadNative };
 
 var STORE_BLOB = common.STORE_BLOB;
 var STORE_CONTENT = common.STORE_CONTENT;
@@ -1098,7 +1123,7 @@ function payloadFileSync (pointer) {
     }
 
     path = normalizePath(path);
-    // console.log("internalModuleStat", path);
+    console.log('internalModuleStat', path);
     var entity = VIRTUAL_FILESYSTEM[path];
     if (!entity) return findNativeAddonForInternalModuleStat(path);
     var entityBlob = entity[STORE_BLOB];
@@ -1133,6 +1158,8 @@ function payloadFileSync (pointer) {
     if (!entityContent) return undefined;
     return payloadFileSync(entityContent).toString();
   };
+
+  global.PKGJS.fsFakeBinding = fs;
 }());
 
 // /////////////////////////////////////////////////////////////////
@@ -1146,6 +1173,8 @@ function payloadFileSync (pointer) {
   ancestor._compile =         Module.prototype._compile;
   ancestor._resolveFilename = Module._resolveFilename;
   ancestor.runMain =          Module.runMain;
+
+  Module._findPath = loadNative('internal/modules/cjs/loader.js')._findPath; // replace fnc with our patched version (see loadNative and "patches" at the top)
 
   Module.prototype.require = function (path) {
     try {
@@ -1189,7 +1218,7 @@ function payloadFileSync (pointer) {
     };
   } else
   if (NODE_VERSION_MAJOR <= 9) {
-    im = require('/internal/module');
+    im = loadNative('internal/module');
     if (NODE_VERSION_MAJOR <= 7) {
       makeRequireFunction = function (m) {
         return im.makeRequireFunction.call(m);
@@ -1198,7 +1227,7 @@ function payloadFileSync (pointer) {
       makeRequireFunction = im.makeRequireFunction;
     }
   } else {
-    im = require('/internal/modules/cjs/helpers');
+    im = loadNative('internal/modules/cjs/helpers');
     makeRequireFunction = im.makeRequireFunction;
     // TODO esm modules along with cjs
   }
@@ -1448,7 +1477,7 @@ function payloadFileSync (pointer) {
     var createPromise = binding.createPromise;
     var promiseResolve = binding.promiseResolve;
     var promiseReject = binding.promiseReject;
-    var customPromisifyArgs = require('/internal/util').customPromisifyArgs;
+    var customPromisifyArgs = loadNative('internal/util').customPromisifyArgs;
 
     // /////////////////////////////////////////////////////////////
     // FS //////////////////////////////////////////////////////////
