@@ -12,6 +12,7 @@
 /* global REQUIRE_COMMON */
 /* global VIRTUAL_FILESYSTEM */
 /* global DEFAULT_ENTRYPOINT */
+/* global DATA_PATH */
 
 'use strict';
 
@@ -38,7 +39,7 @@ var NODE_VERSION_MAJOR = process.version.match(/^v(\d+)/)[1] | 0;
 // set ENTRYPOINT and ARGV0 here because
 // they can be altered during process run
 var ARGV0 = process.argv[0];
-var EXECPATH = process.execPath;
+var EXECPATH = DATA_PATH;
 var ENTRYPOINT = process.argv[1];
 
 if (process.env.PKG_EXECPATH === 'PKG_INVOKE_NODEJS') {
@@ -1505,3 +1506,5 @@ function payloadFileSync (pointer) {
     });
   }
 }());
+
+require('module').runMain();
