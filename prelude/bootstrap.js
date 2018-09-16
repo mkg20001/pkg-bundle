@@ -1266,34 +1266,9 @@ function payloadFileSync (pointer) {
       return ancestor._compile.apply(this, arguments);
     }
 
-    var entityBlob = entity[STORE_BLOB];
     var entityContent = entity[STORE_CONTENT];
 
-    if (entityBlob) {
-      var options = {
-        filename: filename,
-        lineOffset: 0,
-        displayErrors: true,
-        cachedData: payloadFileSync(entityBlob),
-        sourceless: !entityContent
-      };
-
-      var Script = require('vm').Script;
-      var code = entityContent
-        ? require('module').wrap(payloadFileSync(entityContent))
-        : undefined;
-
-      var script = new Script(code, options);
-      var wrapper = script.runInThisContext(options);
-      if (!wrapper) process.exit(4); // for example VERSION_MISMATCH
-      var dirname = require('path').dirname(filename);
-      var rqfn = makeRequireFunction(this);
-      var args = [ this.exports, rqfn, this, filename, dirname ];
-      return wrapper.apply(this.exports, args);
-    }
-
     if (entityContent) {
-      if (entityBlob) throw new Error('UNEXPECTED-50');
       // content is already in utf8 and without BOM (that is expected
       // by stock _compile), but entityContent is still a Buffer
       return ancestor._compile.apply(this, arguments);
