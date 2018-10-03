@@ -56,7 +56,7 @@ function loadNative (path) {
 
 // Expose loadNative as global
 
-global.PKGJS = { loadNative };
+global.PKGJS = { loadNative, patchedModules: {} };
 
 var STORE_BLOB = common.STORE_BLOB;
 var STORE_CONTENT = common.STORE_CONTENT;
@@ -78,7 +78,7 @@ var NODE_VERSION_MAJOR = process.version.match(/^v(\d+)/)[1] | 0;
 // set ENTRYPOINT and ARGV0 here because
 // they can be altered during process run
 var ARGV0 = process.argv[0];
-var EXECPATH = DATA_PATH;
+var EXECPATH = process.argv[1];
 
 if (process.env.PKG_EXECPATH) {
   process.argv[1] = process.env.PKG_EXECPATH;
@@ -1187,6 +1187,9 @@ function payloadFileSync (pointer) {
   const patchedResolveFilename = loadNative('internal/modules/cjs/loader.js')._resolveFilename;
 
   Module.prototype.require = function (path) {
+    if (global.PKGJS.patchedModules[path]) {
+      return global.PKGJS.patchedModules[path];
+    }
     try {
       return ancestor.require.apply(this, arguments);
     } catch (error) {
@@ -1447,6 +1450,30 @@ function payloadFileSync (pointer) {
     modifyLong(args, 0);
     return ancestor.execSync.apply(childProcess, args);
   };
+
+  // in original pkg, child_process.fork() is patched to use exports.spawn. We can't patch natives, but we can grab their code and do hacky replacements ;)
+  const stdioStringToArray = natives.child_process.match(/(function stdioStringToArray\(.+(\n| {2}.+\n)+})/gm)[0];
+  let forkCode = natives.child_process.match(/(function fork\(.+(\n| {2}.+\n)+})/gm)[0].replace('return spawn', 'return this.spawn');
+  forkCode = `(function(require, loadNative) {
+    'use strict';
+    const util = require('util');
+    const {
+      ERR_INVALID_ARG_VALUE,
+      ERR_CHILD_PROCESS_IPC_REQUIRED,
+      ERR_CHILD_PROCESS_STDIO_MAXBUFFER,
+      ERR_INVALID_ARG_TYPE,
+      ERR_INVALID_OPT_VALUE,
+      ERR_OUT_OF_RANGE
+    } = loadNative('internal/errors').codes;
+
+    ${stdioStringToArray}
+
+    return ${forkCode}
+  })\n`;
+  const script = new vm.Script(Buffer.from(forkCode), { filename: 'child_process/fork_patched.js' });
+  childProcess.fork = script.runInThisContext()(require, global.PKGJS.loadNative).bind(childProcess);
+
+  global.PKGJS.patchedModules.child_process = childProcess;
 }());
 
 // /////////////////////////////////////////////////////////////////
