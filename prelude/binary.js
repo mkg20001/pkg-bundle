@@ -35,12 +35,6 @@
 
   (function () {
     const fd = fs.openSync(DATA_FILE, 'r');
-    const result = readPrelude(fd);
-    if (result && result.undoPatch) {
-      const bindingFs = process.binding('fs');
-      fs.internalModuleStat = bindingFs.internalModuleStat;
-      fs.internalModuleReadJSON = bindingFs.internalModuleReadJSON;
-      fs.closeSync(fd);
-    }
+    readPrelude(fd);
   }());
 }());

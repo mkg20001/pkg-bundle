@@ -79,20 +79,14 @@ var NODE_VERSION_MAJOR = process.version.match(/^v(\d+)/)[1] | 0;
 // they can be altered during process run
 var ARGV0 = process.argv[0];
 var EXECPATH = DATA_PATH;
-var ENTRYPOINT = process.argv[1];
 
-if (process.env.PKG_EXECPATH === 'PKG_INVOKE_NODEJS') {
-  return { undoPatch: true };
-}
-
-if (process.env.PKG_EXECPATH === EXECPATH) {
-  process.argv.splice(1, 1);
+if (process.env.PKG_EXECPATH) {
+  process.argv[1] = process.env.PKG_EXECPATH;
 } else {
   process.argv[1] = DEFAULT_ENTRYPOINT;
 }
 
-ENTRYPOINT = process.argv[1];
-delete process.env.PKG_EXECPATH;
+var ENTRYPOINT = process.argv[1];
 
 // /////////////////////////////////////////////////////////////////
 // EXECSTAT ////////////////////////////////////////////////////////
