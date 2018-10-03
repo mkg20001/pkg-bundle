@@ -37,6 +37,8 @@ const cache = {
   }
 };
 
+const debugPrint = (...a) => console.log('[PKG] ' + a[0], ...a.slice(1));
+
 function loadNative (path) {
   path = path.replace('.js', '').replace(/\/\//g, '/');
   let code = natives[path];
@@ -488,7 +490,7 @@ function payloadFileSync (pointer) {
   function openFromSnapshot (path_, cb) {
     var cb2 = cb || rethrow;
     var path = normalizePath(path_);
-    // console.log("openFromSnapshot", path);
+    debugPrint('openFromSnapshot', path);
     var entity = VIRTUAL_FILESYSTEM[path];
     if (!entity) return cb2(error_ENOENT('File or directory', path));
     var dock = { path: path, entity: entity, position: 0 };
@@ -673,7 +675,7 @@ function payloadFileSync (pointer) {
   function readFileFromSnapshot (path_, cb) {
     var cb2 = cb || rethrow;
     var path = normalizePath(path_);
-    // console.log("readFileFromSnapshot", path);
+    debugPrint('readFileFromSnapshot', path);
     var entity = VIRTUAL_FILESYSTEM[path];
     if (!entity) return cb2(error_ENOENT('File', path));
     var entityLinks = entity[STORE_LINKS];
@@ -789,7 +791,7 @@ function payloadFileSync (pointer) {
     var cb2 = cb || rethrow;
     if (isRoot) return readdirRoot(path_, cb);
     var path = normalizePath(path_);
-    // console.log("readdirFromSnapshot", path);
+    debugPrint('readdirFromSnapshot', path);
     var entity = VIRTUAL_FILESYSTEM[path];
     if (!entity) return cb2(error_ENOENT('Directory', path));
     var entityBlob = entity[STORE_BLOB];
@@ -834,7 +836,7 @@ function payloadFileSync (pointer) {
 
   function realpathFromSnapshot (path_) {
     var path = normalizePath(path_);
-    // console.log("realpathFromSnapshot", path);
+    debugPrint('realpathFromSnapshot', path);
     return path;
   }
 
@@ -932,7 +934,7 @@ function payloadFileSync (pointer) {
   function statFromSnapshot (path_, cb) {
     var cb2 = cb || rethrow;
     var path = normalizePath(path_);
-    // console.log("statFromSnapshot", path);
+    debugPrint('statFromSnapshot', path);
     var entity = VIRTUAL_FILESYSTEM[path];
     if (!entity) return findNativeAddonForStat(path, cb);
     var entityStat = entity[STORE_STAT];
@@ -1031,7 +1033,7 @@ function payloadFileSync (pointer) {
 
   function existsFromSnapshot (path_) {
     var path = normalizePath(path_);
-    // console.log("existsFromSnapshot", path);
+    debugPrint('existsFromSnapshot', path);
     var entity = VIRTUAL_FILESYSTEM[path];
     if (!entity) return findNativeAddonForExists(path);
     return true;
@@ -1067,7 +1069,7 @@ function payloadFileSync (pointer) {
   function accessFromSnapshot (path_, cb) {
     var cb2 = cb || rethrow;
     var path = normalizePath(path_);
-    // console.log("accessFromSnapshot", path);
+    debugPrint('accessFromSnapshot', path);
     var entity = VIRTUAL_FILESYSTEM[path];
     if (!entity) return cb2(error_ENOENT('File or directory', path));
     return cb2(null, undefined);
@@ -1131,7 +1133,7 @@ function payloadFileSync (pointer) {
     }
 
     path = normalizePath(path);
-    // console.log("internalModuleStat", path);
+    debugPrint('internalModuleStat', path);
     var entity = VIRTUAL_FILESYSTEM[path];
     if (!entity) return findNativeAddonForInternalModuleStat(path);
     var entityBlob = entity[STORE_BLOB];
@@ -1159,7 +1161,7 @@ function payloadFileSync (pointer) {
     }
 
     path = normalizePath(path);
-    // console.log("internalModuleReadFile", path);
+    debugPrint('internalModuleReadFile', path);
     var entity = VIRTUAL_FILESYSTEM[path];
     if (!entity) return undefined;
     var entityContent = entity[STORE_CONTENT];
@@ -1187,7 +1189,9 @@ function payloadFileSync (pointer) {
   const patchedResolveFilename = loadNative('internal/modules/cjs/loader.js')._resolveFilename;
 
   Module.prototype.require = function (path) {
+    debugPrint('_require', path);
     if (global.PKGJS.patchedModules[path]) {
+      debugPrint('_require_res', 'patched');
       return global.PKGJS.patchedModules[path];
     }
     try {
@@ -1255,7 +1259,7 @@ function payloadFileSync (pointer) {
     }
 
     var filename = normalizePath(filename_);
-    // console.log("_compile", filename);
+    debugPrint('_compile', filename);
     var entity = VIRTUAL_FILESYSTEM[filename];
 
     if (!entity) {
@@ -1413,6 +1417,7 @@ function payloadFileSync (pointer) {
     var args = cloneArgs(arguments);
     setOptsEnv(args);
     modifyShort(args);
+    debugPrint('child_process spawn %o %o', cloneArgs(arguments), args);
     return ancestor.spawn.apply(childProcess, args);
   };
 
@@ -1420,6 +1425,7 @@ function payloadFileSync (pointer) {
     var args = cloneArgs(arguments);
     setOptsEnv(args);
     modifyShort(args);
+    debugPrint('child_process spawnSync %o %o', cloneArgs(arguments), args);
     return ancestor.spawnSync.apply(childProcess, args);
   };
 
@@ -1427,6 +1433,7 @@ function payloadFileSync (pointer) {
     var args = cloneArgs(arguments);
     setOptsEnv(args);
     modifyShort(args);
+    debugPrint('child_process execFile %o %o', cloneArgs(arguments), args);
     return ancestor.execFile.apply(childProcess, args);
   };
 
@@ -1434,6 +1441,7 @@ function payloadFileSync (pointer) {
     var args = cloneArgs(arguments);
     setOptsEnv(args);
     modifyShort(args);
+    debugPrint('child_process execFileSync %o %o', cloneArgs(arguments), args);
     return ancestor.execFileSync.apply(childProcess, args);
   };
 
@@ -1441,6 +1449,7 @@ function payloadFileSync (pointer) {
     var args = cloneArgs(arguments);
     setOptsEnv(args);
     modifyLong(args, 0);
+    debugPrint('child_process exec %o %o', cloneArgs(arguments), args);
     return ancestor.exec.apply(childProcess, args);
   };
 
@@ -1448,6 +1457,7 @@ function payloadFileSync (pointer) {
     var args = cloneArgs(arguments);
     setOptsEnv(args);
     modifyLong(args, 0);
+    debugPrint('child_process execSync %o %o', cloneArgs(arguments), args);
     return ancestor.execSync.apply(childProcess, args);
   };
 
